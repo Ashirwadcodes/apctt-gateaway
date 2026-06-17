@@ -677,6 +677,16 @@
   border-top: 1px solid var(--line);
 }
 
+.technology-card.external-card {
+  background: var(--surface-2, #f8f9fa);
+  opacity: 0.92;
+}
+
+.card-external-link {
+  display: inline-block;
+  margin-top: 4px;
+}
+
 .card-sector {
   margin-bottom: 10px;
   color: var(--blue-700);

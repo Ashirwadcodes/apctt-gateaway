@@ -157,6 +157,42 @@ async function translateCard(btn, techId) {
   }
 }
 
+const REDIRECT_SOURCE_INFO = {
+  wipo_patentscope: {
+    size: "128M+ patents",
+    coverage: "International patent applications from 150+ countries via the PCT system.",
+    cards: [
+      {
+        title: "International Patent Applications (PCT)",
+        sector: "Patents",
+        org: "World Intellectual Property Organization",
+        country: "International",
+        description: "Search PCT applications and national patents across Asia-Pacific member states including Japan, Korea, China, India, Australia, and 145+ other countries.",
+      },
+      {
+        title: "Asia-Pacific Technology Filings",
+        sector: "Patents — AP Region",
+        org: "WIPO PATENTSCOPE",
+        country: "Asia-Pacific",
+        description: "Filter by Asia-Pacific offices (JP, KR, CN, IN, AU, SG, TH, VN and more) to find regionally relevant technology filings.",
+      },
+    ],
+  },
+  india_tifac: {
+    size: "Active technologies",
+    coverage: "Indian technologies available for transfer from government R&D institutions.",
+    cards: [
+      {
+        title: "Indian Technology Transfer Offers",
+        sector: "Technology Transfer",
+        org: "Technology Information, Forecasting and Assessment Council",
+        country: "India",
+        description: "TIFAC TechMonitor lists technologies developed by Indian government labs and institutions available for commercial licensing and transfer.",
+      },
+    ],
+  },
+};
+
 function buildRedirectUrl(source, query) {
   const q = encodeURIComponent(query || "");
   if (source.id === "wipo_patentscope" && q) {
@@ -174,19 +210,28 @@ function sourceGroup(source, results, totalCount) {
   const countLabel = totalCount && totalCount > results.length
     ? `${results.length} of ${totalCount.toLocaleString()}`
     : fetchedLabel;
+  const info = REDIRECT_SOURCE_INFO[source.id];
   const content = isMetadata
     ? `<div class="technology-list">${results.map((item) => technologyCard(item, source)).join("")}</div>`
-    : `
-      <div class="redirect-card">
-        <div>
-          <h4>Search ${source.name} directly</h4>
-          <p>This source does not yet provide inline metadata. Click below to run your search on their platform.</p>
-        </div>
-        <a class="button button-secondary" href="${buildRedirectUrl(source, state.query)}" target="_blank" rel="noopener noreferrer">
-          Search on ${source.name}&nbsp; →
-        </a>
-      </div>
-    `;
+    : `<div class="technology-list">
+        ${info ? info.cards.map((card) => `
+          <article class="technology-card external-card">
+            <span class="card-sector">${card.sector}</span>
+            <h4 class="card-title">${card.title}</h4>
+            <p class="card-summary">${card.description}</p>
+            <div class="card-details">
+              <span>${card.country}</span>
+              <span>${card.org}</span>
+            </div>
+            <div class="card-actions">
+              <a class="button button-secondary card-external-link"
+                 href="${buildRedirectUrl(source, state.query)}"
+                 target="_blank" rel="noopener noreferrer">
+                Search on ${source.name}&nbsp; →
+              </a>
+            </div>
+          </article>`).join("") : ""}
+      </div>`;
 
   return `
     <section class="source-group">
@@ -199,7 +244,7 @@ function sourceGroup(source, results, totalCount) {
           </div>
         </div>
         <div class="group-meta">
-          <span class="result-count">${isMetadata ? countLabel : "External source"}</span>
+          <span class="result-count">${isMetadata ? countLabel : (info ? info.size : "External source")}</span>
           <span class="status ${statusClass(source.status)}">${source.status}</span>
         </div>
       </header>
