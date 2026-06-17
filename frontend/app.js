@@ -228,7 +228,7 @@ async function renderResults() {
     els.results.innerHTML = `
       <div class="empty-state">
         <h3>Could not connect to the search service</h3>
-        <p>Make sure the backend is running on port 8000.</p>
+        <p>The search service is temporarily unavailable. It may be starting up — please wait 30 seconds and refresh.</p>
       </div>`;
     return;
   }
