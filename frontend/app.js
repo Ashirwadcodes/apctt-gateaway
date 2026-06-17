@@ -250,16 +250,7 @@ async function renderResults() {
     `${total} technolog${total === 1 ? "y" : "ies"} across ` +
     `${sources_hit} source platform${sources_hit === 1 ? "" : "s"}.`;
 
-  if (!results.length) {
-    els.results.innerHTML = `
-      <div class="empty-state">
-        <h3>No matching technologies found</h3>
-        <p>Try a broader keyword or clear one of the filters.</p>
-      </div>`;
-    return;
-  }
-
-  // Group by source_id, build a source-like object from the technology data
+  // Group metadata results by source_id
   const groups = {};
   results.forEach((tech) => {
     if (!groups[tech.source_id]) groups[tech.source_id] = [];
@@ -268,12 +259,31 @@ async function renderResults() {
 
   const sourceMap = Object.fromEntries(sourcesCache.map((s) => [s.id, s]));
 
+  // Always include redirect sources so their cards appear even with zero metadata results
+  const activeSourceFilter = state.source;
+  sourcesCache.forEach((s) => {
+    if (s.status === "Search redirect") {
+      if (!activeSourceFilter || activeSourceFilter === s.id) {
+        if (!groups[s.id]) groups[s.id] = [];
+      }
+    }
+  });
+
+  if (!Object.keys(groups).length) {
+    els.results.innerHTML = `
+      <div class="empty-state">
+        <h3>No matching technologies found</h3>
+        <p>Try a broader keyword or clear one of the filters.</p>
+      </div>`;
+    return;
+  }
+
   els.results.innerHTML = Object.entries(groups)
     .map(([sourceId, techs]) => {
       const source = sourceMap[sourceId] || {
         id: sourceId,
-        name: techs[0].source_name,
-        country: techs[0].country,
+        name: techs[0]?.source_name || sourceId,
+        country: techs[0]?.country || "",
         institution: "",
         status: "Metadata search",
         url: "#",
