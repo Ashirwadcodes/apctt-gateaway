@@ -40,7 +40,6 @@ async def search(
             cached=True,
         )
 
-    # Select sources to query
     active_sources = SOURCES
     if source:
         active_sources = [s for s in SOURCES if s.id == source]
@@ -56,7 +55,6 @@ async def search(
     results_nested = await asyncio.gather(*[safe_search(s) for s in active_sources])
     results = [tech for batch in results_nested for tech in batch]
 
-    # Post-fetch language filter
     if language:
         results = [r for r in results if r.language.lower() == language.lower()]
 
@@ -69,21 +67,3 @@ async def search(
         results=results,
         cached=False,
     )
-
-
-# Temporary debug endpoint — remove before deploy
-@router.get("/debug/ntb-raw")
-async def debug_ntb_raw(q: str = "solar"):
-    from urllib.parse import unquote
-    from backend.config import settings
-    import httpx
-
-    params = {
-        "serviceKey": unquote(settings.KOREA_NTB_API_KEY),
-        "numOfRows": "3",
-        "pageNo": "1",
-        "techName": q,
-    }
-    async with httpx.AsyncClient(timeout=15.0) as client:
-        r = await client.get(settings.KOREA_NTB_BASE_URL, params=params)
-        return r.json()
