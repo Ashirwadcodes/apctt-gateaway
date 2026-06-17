@@ -1,4 +1,4 @@
-# APCTT Technology Gateway
+# APSE Technology Gateway
 
 A federated search engine for technology transfer across Asia-Pacific databases. Built as a prototype for APCTT (Asian and Pacific Centre for Transfer of Technology), a body under UN ESCAP.
 
@@ -60,7 +60,7 @@ The backend exposes two endpoints. The frontend calls them directly from the bro
 **Requirements:** Python 3.11+
 
 ```bash
-cd apctt-gateway
+cd apse
 
 python -m venv .venv
 .venv\Scripts\activate        # Windows

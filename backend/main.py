@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.routers import search, sources
 
 app = FastAPI(
-    title="APCTT Technology Gateway API",
+    title="APSE Technology Gateway API",
     description="Federated search across Asia-Pacific technology transfer databases",
     version="0.1.0",
 )
