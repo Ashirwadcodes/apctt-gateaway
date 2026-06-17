@@ -160,7 +160,7 @@ async function translateCard(btn, techId) {
 function buildRedirectUrl(source, query) {
   const q = encodeURIComponent(query || "");
   if (source.id === "wipo_patentscope" && q) {
-    return `https://patentscope.wipo.int/search/en/search.jsf?query=${q}`;
+    return `https://patentscope.wipo.int/search/en/result.jsf?query=${q}`;
   }
   if (source.id === "india_tifac" && q) {
     return `https://tifac.org.in/techmonitor?search=${q}`;
