@@ -179,28 +179,12 @@ const REDIRECT_SOURCE_INFO = {
       },
     ],
   },
-  india_tifac: {
-    size: "Active technologies",
-    coverage: "Indian technologies available for transfer from government R&D institutions.",
-    cards: [
-      {
-        title: "Indian Technology Transfer Offers",
-        sector: "Technology Transfer",
-        org: "Technology Information, Forecasting and Assessment Council",
-        country: "India",
-        description: "TIFAC TechMonitor lists technologies developed by Indian government labs and institutions available for commercial licensing and transfer.",
-      },
-    ],
-  },
 };
 
 function buildRedirectUrl(source, query) {
   const q = encodeURIComponent(query || "");
   if (source.id === "wipo_patentscope" && q) {
     return `https://patentscope.wipo.int/search/en/result.jsf?query=${q}`;
-  }
-  if (source.id === "india_tifac" && q) {
-    return `https://tifac.org.in/techmonitor?search=${q}`;
   }
   return source.url;
 }

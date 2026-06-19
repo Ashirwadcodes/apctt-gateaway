@@ -1,7 +1,10 @@
+import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.routers import search, sources
 from backend.config import settings
+
+logging.basicConfig(level=logging.INFO)
 
 app = FastAPI(
     title="APSE Technology Gateway API",

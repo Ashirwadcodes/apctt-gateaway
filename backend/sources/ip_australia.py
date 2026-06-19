@@ -1,9 +1,12 @@
 import asyncio
+import logging
 import time
 import httpx
 from backend.sources.base import BaseSource
 from backend.models.technology import Technology
 from backend.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class IPAustraliaSource(BaseSource):
@@ -15,8 +18,8 @@ class IPAustraliaSource(BaseSource):
     url = "https://www.ipaustralia.gov.au/patents"
     ttl_seconds = 86400
 
-    _BASE = "https://test.api.ipaustralia.gov.au/public/australian-patent-search-api/v1"
     _TOKEN_URL = "https://test.api.ipaustralia.gov.au/public/external-token-api/v1/access_token"
+    _SEARCH_URL = "https://test.api.ipaustralia.gov.au/public/australian-patent-search-api/v1/search/quick"
 
     def __init__(self):
         self._token: str | None = None
@@ -30,23 +33,35 @@ class IPAustraliaSource(BaseSource):
             if self._token and time.time() < self._token_expiry - 30:
                 return self._token
 
+            cid = settings.IP_AUSTRALIA_CLIENT_ID
+            csec = settings.IP_AUSTRALIA_CLIENT_SECRET
+            logger.info("IPAustralia: fetching token (client_id=%s...)", cid[:8] if cid else "MISSING")
+
             async with httpx.AsyncClient(timeout=15) as client:
                 r = await client.post(
                     self._TOKEN_URL,
                     data={"grant_type": "client_credentials"},
-                    auth=(settings.IP_AUSTRALIA_CLIENT_ID, settings.IP_AUSTRALIA_CLIENT_SECRET),
+                    auth=(cid, csec),
                 )
+
+            logger.info("IPAustralia: token response %s — %s", r.status_code, r.text[:200])
             r.raise_for_status()
             body = r.json()
             self._token = body["access_token"]
             self._token_expiry = time.time() + int(body.get("expires_in", 3600))
+            logger.info("IPAustralia: token OK, expires in %ss", body.get("expires_in"))
             return self._token
 
     async def search(self, query: str, filters: dict) -> tuple[list[Technology], int]:
         if not query:
             return [], 0
 
-        token = await self._get_token()
+        try:
+            token = await self._get_token()
+        except Exception as e:
+            logger.error("IPAustralia: token fetch failed — %s", e)
+            return [], 0
+
         payload = {
             "query": query,
             "searchType": "DETAILS",
@@ -56,32 +71,34 @@ class IPAustraliaSource(BaseSource):
             "sort": {"field": "FILING_DATE", "direction": "DESC"},
         }
 
-        async with httpx.AsyncClient(timeout=20) as client:
-            r = await client.post(
-                f"{self._BASE}/search/quick",
-                json=payload,
-                headers={"Authorization": f"Bearer {token}"},
-            )
+        try:
+            async with httpx.AsyncClient(timeout=20) as client:
+                r = await client.post(
+                    self._SEARCH_URL,
+                    json=payload,
+                    headers={"Authorization": f"Bearer {token}"},
+                )
+            logger.info("IPAustralia: search '%s' → %s", query, r.status_code)
             r.raise_for_status()
+        except Exception as e:
+            logger.error("IPAustralia: search failed — %s", e)
+            return [], 0
 
         data = r.json()
         total = int(data.get("totalHits") or 0)
         items = [self._normalize(hit) for hit in (data.get("results") or [])]
+        logger.info("IPAustralia: %d results (total=%d)", len(items), total)
         return items, total
 
     def _normalize(self, hit: dict) -> Technology:
         titles = hit.get("title") or []
         title = titles[0] if titles else (hit.get("applicationNumber") or "Untitled")
-
         applicants = hit.get("applicants") or []
         org = applicants[0] if applicants else ""
-
         filing_date = hit.get("filingDate") or ""
         if len(filing_date) == 8:
             filing_date = f"{filing_date[:4]}-{filing_date[4:6]}-{filing_date[6:]}"
-
         app_num = hit.get("applicationNumber") or ""
-
         return Technology(
             id=f"ipau_{app_num}",
             source_id=self.id,
