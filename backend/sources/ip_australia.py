@@ -21,9 +21,11 @@ class IPAustraliaSource(BaseSource):
     def __init__(self):
         self._token: str | None = None
         self._token_expiry: float = 0.0
-        self._lock = asyncio.Lock()
+        self._lock: asyncio.Lock | None = None
 
     async def _get_token(self) -> str:
+        if self._lock is None:
+            self._lock = asyncio.Lock()
         async with self._lock:
             if self._token and time.time() < self._token_expiry - 30:
                 return self._token
