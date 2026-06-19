@@ -40,7 +40,7 @@ class KoreaNTBSource(BaseSource):
             country="Republic of Korea",
             source_id=self.id,
             source_name=self.name,
-            url=self.url,
+            url=f"https://www.ntb.kr/market/selectFullTechAndRecommend.do?techKey=&stechNum={tech_id}" if tech_id else self.url,
             fetched_at=datetime.utcnow(),
             org_name=f("orgName"),
             transfer_type=f("transType"),

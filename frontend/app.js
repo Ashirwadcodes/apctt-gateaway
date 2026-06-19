@@ -98,6 +98,7 @@ function technologyCard(technology, source) {
         <button class="card-details-btn" onclick="toggleDetails(this, '${technology.id}')">
           Full record ↓
         </button>
+        ${technology.url ? `<a class="button button-secondary card-external-link" href="${technology.url}" target="_blank" rel="noopener noreferrer">View on source ↗</a>` : ""}
       </div>
     </article>
   `;
