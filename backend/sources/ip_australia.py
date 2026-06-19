@@ -1,5 +1,5 @@
+import asyncio
 import time
-import threading
 import httpx
 from backend.sources.base import BaseSource
 from backend.models.technology import Technology
@@ -21,37 +21,30 @@ class IPAustraliaSource(BaseSource):
     def __init__(self):
         self._token: str | None = None
         self._token_expiry: float = 0.0
-        self._lock = threading.Lock()
+        self._lock = asyncio.Lock()
 
-    # ── OAuth2 client-credentials token management ────────────────────────────
-
-    def _get_token(self) -> str:
-        with self._lock:
+    async def _get_token(self) -> str:
+        async with self._lock:
             if self._token and time.time() < self._token_expiry - 30:
                 return self._token
 
-            client_id = settings.IP_AUSTRALIA_CLIENT_ID
-            client_secret = settings.IP_AUSTRALIA_CLIENT_SECRET
-
-            r = httpx.post(
-                self._TOKEN_URL,
-                data={"grant_type": "client_credentials"},
-                auth=(client_id, client_secret),
-                timeout=15,
-            )
+            async with httpx.AsyncClient(timeout=15) as client:
+                r = await client.post(
+                    self._TOKEN_URL,
+                    data={"grant_type": "client_credentials"},
+                    auth=(settings.IP_AUSTRALIA_CLIENT_ID, settings.IP_AUSTRALIA_CLIENT_SECRET),
+                )
             r.raise_for_status()
             body = r.json()
             self._token = body["access_token"]
             self._token_expiry = time.time() + int(body.get("expires_in", 3600))
             return self._token
 
-    # ── Search ────────────────────────────────────────────────────────────────
-
     async def search(self, query: str, filters: dict) -> tuple[list[Technology], int]:
         if not query:
             return [], 0
 
-        token = self._get_token()
+        token = await self._get_token()
         payload = {
             "query": query,
             "searchType": "DETAILS",
@@ -71,9 +64,7 @@ class IPAustraliaSource(BaseSource):
 
         data = r.json()
         total = int(data.get("totalHits") or 0)
-        items = []
-        for hit in data.get("results") or []:
-            items.append(self._normalize(hit))
+        items = [self._normalize(hit) for hit in (data.get("results") or [])]
         return items, total
 
     def _normalize(self, hit: dict) -> Technology:
@@ -84,7 +75,6 @@ class IPAustraliaSource(BaseSource):
         org = applicants[0] if applicants else ""
 
         filing_date = hit.get("filingDate") or ""
-        # filingDate comes as YYYYMMDD string
         if len(filing_date) == 8:
             filing_date = f"{filing_date[:4]}-{filing_date[4:6]}-{filing_date[6:]}"
 
@@ -109,8 +99,4 @@ class IPAustraliaSource(BaseSource):
         )
 
     def is_healthy(self) -> bool:
-        try:
-            self._get_token()
-            return True
-        except Exception:
-            return False
+        return bool(settings.IP_AUSTRALIA_CLIENT_ID)

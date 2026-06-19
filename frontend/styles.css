@@ -742,7 +742,8 @@
 .card-actions {
   display: flex;
   align-items: center;
-  gap: 16px;
+  flex-wrap: wrap;
+  gap: 8px;
   margin-top: auto;
   padding-top: 4px;
 }
