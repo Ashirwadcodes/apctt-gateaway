@@ -115,7 +115,7 @@ class IPAustraliaSource(BaseSource):
             reg_date=filing_date,
             keywords=[],
             sub_sector="",
-            url=f"https://pericles.ipaustralia.gov.au/ols/auspat/applicationDetails.do?applicationNo={app_num}",
+            url=f"https://ipsearch.ipaustralia.gov.au/patents/?applicationNo={app_num}",
             fetched_at=datetime.utcnow(),
         )
 
