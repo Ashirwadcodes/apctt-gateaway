@@ -50,7 +50,7 @@ async def search(
 
     async def safe_search(src):
         try:
-            return src.id, await src.search(query, filters)
+            return src.id, await asyncio.wait_for(src.search(query, filters), timeout=10.0)
         except Exception:
             return src.id, ([], 0)
 
