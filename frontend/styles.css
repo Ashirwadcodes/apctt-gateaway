@@ -1124,6 +1124,15 @@
   cursor: pointer;
 }
 
+/* ── NTB slow-lane spinner ───────────────────────────────────────────────────── */
+
+.ntb-spinner {
+  padding: 24px 20px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
 /* ── Load more ───────────────────────────────────────────────────────────────── */
 
 .load-more-wrap {

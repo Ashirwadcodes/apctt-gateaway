@@ -256,12 +256,14 @@ async function fetchSources() {
   return res.json();
 }
 
-async function fetchResults(page = 1) {
+async function fetchResults(overrides = {}) {
   const params = new URLSearchParams();
+  const page = overrides.page || 1;
+  const src  = overrides.source !== undefined ? overrides.source : state.source;
   if (state.query)    params.set("q", state.query);
   if (state.country)  params.set("country", state.country);
   if (state.sector)   params.set("sector", state.sector);
-  if (state.source)   params.set("source", state.source);
+  if (src)            params.set("source", src);
   if (state.language) params.set("language", state.language);
   if (page > 1)       params.set("page", page);
   const res = await fetch(`${API_BASE}/search?${params}`);
@@ -271,14 +273,47 @@ async function fetchResults(page = 1) {
 
 // ── Rendering ─────────────────────────────────────────────────────────────────
 
+function _renderGroups(results, source_totals, sourceMap, activeSourceFilter) {
+  const groups = {};
+  results.forEach((tech) => {
+    if (!groups[tech.source_id]) groups[tech.source_id] = [];
+    groups[tech.source_id].push(tech);
+  });
+  // Always show redirect sources
+  sourcesCache.forEach((s) => {
+    if (s.status === "Search redirect") {
+      if (!activeSourceFilter || activeSourceFilter === s.id) {
+        if (!groups[s.id]) groups[s.id] = [];
+      }
+    }
+  });
+  return Object.entries(groups).map(([sourceId, techs]) => {
+    const source = sourceMap[sourceId] || {
+      id: sourceId, name: techs[0]?.source_name || sourceId,
+      country: techs[0]?.country || "", institution: "", status: "Metadata search", url: "#",
+    };
+    return sourceGroup(source, techs, source_totals[sourceId]);
+  }).join("");
+}
+
 async function renderResults() {
   els.title.textContent = state.query ? `Results for "${state.query}"` : "Technology search results";
   els.summary.textContent = "Searching across source platforms…";
   els.results.innerHTML = `<div class="empty-state"><p>Loading results…</p></div>`;
 
-  let data;
+  const sourceMap = Object.fromEntries(sourcesCache.map((s) => [s.id, s]));
+  const activeSourceFilter = state.source;
+
+  // NTB-only search runs as a separate slow-lane fetch
+  const ntbActive = !activeSourceFilter || activeSourceFilter === "korea_ntb";
+  const fastSource = activeSourceFilter === "korea_ntb" ? "" : activeSourceFilter;
+
+  // Fast lane: everything except NTB (or the single non-NTB source selected)
+  let fastData;
   try {
-    data = await fetchResults();
+    fastData = activeSourceFilter === "korea_ntb"
+      ? { results: [], total: 0, sources_hit: 0, source_totals: {} }
+      : await fetchResults({ source: fastSource });
   } catch {
     els.results.innerHTML = `
       <div class="empty-state">
@@ -288,54 +323,65 @@ async function renderResults() {
     return;
   }
 
-  const { results, total, sources_hit, source_totals = {} } = data;
+  // Filter out any NTB results from fast lane (safety — shouldn't appear, but guard it)
+  const fastResults = (fastData.results || []).filter(r => r.source_id !== "korea_ntb");
+  const fastTotals  = Object.fromEntries(
+    Object.entries(fastData.source_totals || {}).filter(([k]) => k !== "korea_ntb")
+  );
 
-  els.summary.textContent =
-    `${total} technolog${total === 1 ? "y" : "ies"} across ` +
-    `${sources_hit} source platform${sources_hit === 1 ? "" : "s"}.`;
+  // Render fast results + NTB spinner immediately
+  const fastHtml = _renderGroups(fastResults, fastTotals, sourceMap, activeSourceFilter);
+  const ntbSpinner = ntbActive ? `
+    <section class="source-group" data-source-id="korea_ntb">
+      <header class="group-header">
+        <div class="group-source">
+          <span class="source-initial" aria-hidden="true">KN</span>
+          <div><h3>Korea National Technology Bank</h3><p>Republic of Korea</p></div>
+        </div>
+        <div class="group-meta">
+          <span class="result-count">Searching…</span>
+          <span class="status status-metadata">Metadata search</span>
+        </div>
+      </header>
+      <div class="ntb-spinner">Connecting to Korea NTB — may take up to 25 seconds.</div>
+    </section>` : "";
 
-  // Group metadata results by source_id
-  const groups = {};
-  results.forEach((tech) => {
-    if (!groups[tech.source_id]) groups[tech.source_id] = [];
-    groups[tech.source_id].push(tech);
-  });
-
-  const sourceMap = Object.fromEntries(sourcesCache.map((s) => [s.id, s]));
-
-  // Always include redirect sources so their cards appear even with zero metadata results
-  const activeSourceFilter = state.source;
-  sourcesCache.forEach((s) => {
-    if (s.status === "Search redirect") {
-      if (!activeSourceFilter || activeSourceFilter === s.id) {
-        if (!groups[s.id]) groups[s.id] = [];
-      }
-    }
-  });
-
-  if (!Object.keys(groups).length) {
-    els.results.innerHTML = `
-      <div class="empty-state">
-        <h3>No matching technologies found</h3>
-        <p>Try a broader keyword or clear one of the filters.</p>
-      </div>`;
+  if (!fastHtml && !ntbActive) {
+    els.results.innerHTML = `<div class="empty-state"><h3>No matching technologies found</h3><p>Try a broader keyword or clear one of the filters.</p></div>`;
     return;
   }
 
-  els.results.innerHTML = Object.entries(groups)
-    .map(([sourceId, techs]) => {
-      const source = sourceMap[sourceId] || {
-        id: sourceId,
-        name: techs[0]?.source_name || sourceId,
-        country: techs[0]?.country || "",
-        institution: "",
-        status: "Metadata search",
-        url: "#",
-      };
-      return sourceGroup(source, techs, source_totals[sourceId]);
-    })
-    .join("");
+  els.results.innerHTML = fastHtml + ntbSpinner;
+  els.summary.textContent =
+    `${fastResults.length} technolog${fastResults.length === 1 ? "y" : "ies"} loaded` +
+    (ntbActive ? " — Korea NTB loading…" : ".");
 
+  // Slow lane: NTB (12–25s)
+  if (ntbActive) {
+    try {
+      const ntbData = await fetchResults({ source: "korea_ntb" });
+      const ntbResults = (ntbData.results || []).filter(r => r.source_id === "korea_ntb");
+      const ntbTotal   = ntbData.source_totals?.korea_ntb || 0;
+      const ntbSrc = sourceMap["korea_ntb"] || {
+        id: "korea_ntb", name: "Korea National Technology Bank",
+        country: "Republic of Korea", institution: "", status: "Metadata search", url: "https://www.ntb.kr",
+      };
+      const ntbHtml = ntbResults.length
+        ? sourceGroup(ntbSrc, ntbResults, ntbTotal)
+        : `<section class="source-group"><header class="group-header"><div class="group-source">
+            <span class="source-initial">KN</span>
+            <div><h3>Korea National Technology Bank</h3><p>Republic of Korea</p></div>
+           </div><div class="group-meta"><span class="result-count">0 results</span>
+           <span class="status status-metadata">Metadata search</span></div></header></section>`;
+      const ntbSection = document.querySelector('[data-source-id="korea_ntb"]');
+      if (ntbSection) ntbSection.outerHTML = ntbHtml;
+      const total = fastResults.length + ntbResults.length;
+      els.summary.textContent = `${total} technolog${total === 1 ? "y" : "ies"} across ${ntbResults.length ? "2" : "1"} source platform${ntbResults.length ? "s" : ""}.`;
+    } catch {
+      const ntbSection = document.querySelector('[data-source-id="korea_ntb"]');
+      if (ntbSection) ntbSection.querySelector(".ntb-spinner").textContent = "Korea NTB unavailable — try again later.";
+    }
+  }
 }
 
 // Rich detail info per source — shown on the source cards page
@@ -448,7 +494,7 @@ async function loadMore(sourceId) {
   const nextPage = state.pages[sourceId];
 
   try {
-    const data = await fetchResults(nextPage);
+    const data = await fetchResults({ source: sourceId, page: nextPage });
     const { results, source_totals = {} } = data;
     const sourceMap = Object.fromEntries(sourcesCache.map((s) => [s.id, s]));
     const newItems = results.filter((r) => r.source_id === sourceId);
