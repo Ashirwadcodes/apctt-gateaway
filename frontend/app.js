@@ -77,7 +77,7 @@ function technologyCard(technology, source) {
   const needsTranslation = technology.language === "Korean";
 
   return `
-    <article class="technology-card" data-tech-id="${technology.id}" data-needs-translation="${needsTranslation}">
+    <article class="technology-card" data-tech-id="${technology.id}">
       <span class="card-sector">${technology.sector}</span>
       <h4 class="card-title">${technology.title}</h4>
       <p class="card-summary">${technology.summary || "No summary available."}</p>
@@ -94,6 +94,7 @@ function technologyCard(technology, source) {
         ${detailRows}
       </div>
       <div class="card-actions">
+        ${needsTranslation ? `<button class="card-translate-btn" onclick="translateCard(this, '${technology.id}')">Translate to English</button>` : ""}
         <button class="card-details-btn" onclick="toggleDetails(this, '${technology.id}')">
           Full record ↓
         </button>
@@ -124,25 +125,37 @@ async function translateText(text) {
   return data.responseData?.translatedText || text;
 }
 
-// Auto-translate all Korean cards after render (staggered to avoid rate limits)
-async function autoTranslateKoreanCards() {
-  const cards = document.querySelectorAll('[data-needs-translation="true"]:not(.translated)');
-  for (const card of cards) {
-    const titleEl = card.querySelector(".card-title");
-    const summaryEl = card.querySelector(".card-summary");
-    try {
-      const [t, s] = await Promise.all([
-        translateText(titleEl.textContent),
-        translateText(summaryEl.textContent),
-      ]);
-      titleEl.textContent = t;
-      summaryEl.textContent = s;
-      card.classList.add("translated");
-      card.querySelector(".card-details span:nth-child(2)").textContent = "Korean → EN";
-    } catch { /* silent — keep original text */ }
-    await new Promise(r => setTimeout(r, 120)); // stagger to stay within rate limit
+async function translateCard(btn, techId) {
+  const card = document.querySelector(`[data-tech-id="${techId}"]`);
+  const titleEl = card.querySelector(".card-title");
+  const summaryEl = card.querySelector(".card-summary");
+  const tags = card.querySelectorAll(".keyword-tag");
+
+  btn.textContent = "Translating…";
+  btn.disabled = true;
+
+  try {
+    const [translatedTitle, translatedSummary] = await Promise.all([
+      translateText(titleEl.textContent),
+      translateText(summaryEl.textContent),
+    ]);
+    titleEl.textContent = translatedTitle;
+    summaryEl.textContent = translatedSummary;
+    for (const tag of tags) {
+      translateText(tag.textContent).then((t) => { tag.textContent = t; });
+    }
+    card.querySelectorAll(".detail-translatable").forEach((el) => {
+      translateText(el.textContent).then((t) => { el.textContent = t; });
+    });
+    btn.textContent = "✓ Translated";
+    card.classList.add("translated");
+  } catch {
+    btn.textContent = "Translation failed — retry";
+    btn.disabled = false;
   }
 }
+
+window.translateCard = translateCard;
 
 const REDIRECT_SOURCE_INFO = {
   wipo_patentscope: {
@@ -323,8 +336,6 @@ async function renderResults() {
     })
     .join("");
 
-  // Auto-translate Korean cards after render
-  autoTranslateKoreanCards();
 }
 
 // Rich detail info per source — shown on the source cards page
@@ -446,7 +457,6 @@ async function loadMore(sourceId) {
       const source = sourceMap[sourceId];
       const list = document.querySelector(`[data-source-id="${sourceId}"] .technology-list`);
       list.insertAdjacentHTML("beforeend", newItems.map((t) => technologyCard(t, source)).join(""));
-      autoTranslateKoreanCards();
     }
 
     // Update load-more button
