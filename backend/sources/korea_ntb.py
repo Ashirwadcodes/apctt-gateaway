@@ -10,14 +10,10 @@ from backend.config import settings
 
 logger = logging.getLogger(__name__)
 
-_KO_CHARS = set("가나다라마바사아자차카타파하")
-
-
-def _is_korean(text: str) -> bool:
-    return any("가" <= ch <= "힣" for ch in text)
-
 
 async def _translate_to_korean(query: str) -> str:
+    """Kept for future language-filter feature — not called during normal search."""
+    _is_korean = lambda t: any("가" <= ch <= "힣" for ch in t)
     if not query or _is_korean(query):
         return query
     try:
@@ -49,7 +45,6 @@ class KoreaNTBSource(BaseSource):
 
         tech_id = f("stechNum")
         sector = f("tcateNamep") or f("tcateNamem") or "Uncategorized"
-
         kw_raw = f("keyword")
         app_fld = f("appFld")
         keywords = [k.strip() for k in kw_raw.split(";") if k.strip()]
@@ -76,24 +71,23 @@ class KoreaNTBSource(BaseSource):
         )
 
     async def search(self, query: str, filters: dict) -> tuple[list[Technology], int]:
-        ntb_query = query
-
         page = int(filters.get("page", 1))
         params: dict = {
             "serviceKey": unquote(settings.KOREA_NTB_API_KEY),
             "numOfRows": "20",
             "pageNo": str(page),
         }
-        if ntb_query:
-            params["techName"] = ntb_query
+        if query:
+            params["techName"] = query
         if filters.get("sector"):
             params["tcateNamep"] = filters["sector"]
 
-        logger.info("NTB: requesting %s params=%s", settings.KOREA_NTB_BASE_URL, {k: v for k, v in params.items() if k != "serviceKey"})
+        logger.info("NTB: search q=%r page=%d", query, page)
         try:
-            async with httpx.AsyncClient(timeout=15.0) as client:
+            # 23s gives the Korean govt API enough time from US servers (~12-18s latency)
+            async with httpx.AsyncClient(timeout=23.0) as client:
                 r = await client.get(settings.KOREA_NTB_BASE_URL, params=params)
-            logger.info("NTB: HTTP %s — body[:200]=%s", r.status_code, r.text[:200])
+            logger.info("NTB: HTTP %s totalBytes=%d", r.status_code, len(r.content))
             r.raise_for_status()
         except Exception as e:
             logger.error("NTB: request failed — %s: %s", type(e).__name__, e)
@@ -102,7 +96,7 @@ class KoreaNTBSource(BaseSource):
         try:
             root = ET.fromstring(r.text)
         except ET.ParseError as e:
-            logger.error("NTB: XML parse error — %s | raw=%s", e, r.text[:300])
+            logger.error("NTB: XML parse error — %s", e)
             return [], 0
 
         result_code = root.findtext(".//resultCode") or ""
@@ -112,6 +106,7 @@ class KoreaNTBSource(BaseSource):
 
         total_count = int(root.findtext(".//totalCount") or "0")
         items = [self._normalize(item) for item in root.findall(".//item")]
+        logger.info("NTB: %d items (total=%d)", len(items), total_count)
         return items, total_count
 
     def is_healthy(self) -> bool:
