@@ -9,7 +9,6 @@ from backend.models.technology import Technology
 logger = logging.getLogger(__name__)
 
 _DATA_PATH = Path(__file__).parent / "data" / "csir_india.json"
-logger.info("CSIR: data path resolved to %s (exists=%s)", _DATA_PATH, _DATA_PATH.exists())
 
 
 class CSIRIndiaSource(BaseSource):
@@ -29,12 +28,12 @@ class CSIRIndiaSource(BaseSource):
         if self._loaded:
             return
         if not _DATA_PATH.exists():
-            logger.warning("CSIR data file not found at %s — run scripts/crawl_csir.py", _DATA_PATH)
+            logger.warning("CSIR: data file NOT FOUND at %s", _DATA_PATH)
             self._records = []
         else:
             with open(_DATA_PATH, encoding="utf-8") as f:
                 self._records = json.load(f)
-            logger.info("CSIR: loaded %d records from %s", len(self._records), _DATA_PATH)
+            logger.warning("CSIR: loaded %d records OK from %s", len(self._records), _DATA_PATH)
         self._loaded = True
 
     def _to_technology(self, rec: dict) -> Technology:
