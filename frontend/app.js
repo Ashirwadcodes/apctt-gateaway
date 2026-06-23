@@ -252,6 +252,12 @@ function sourceGroup(source, results, totalCount) {
   const pagination = (hasPrev || hasNext) ? `
     <div class="pagination-bar">
       ${pageButtons(source.id, currentPage, totalPages)}
+      <span class="pagination-jump">
+        <input class="pagination-jump-input" type="number" min="1" max="${totalPages}"
+          placeholder="${currentPage}" aria-label="Go to page"
+          onkeydown="if(event.key==='Enter'){const v=parseInt(this.value);if(v>=1&&v<=${totalPages})changePage('${source.id}',v);}">
+        <span class="pagination-jump-label">of ${totalPages.toLocaleString()}</span>
+      </span>
     </div>` : "";
 
   return `
