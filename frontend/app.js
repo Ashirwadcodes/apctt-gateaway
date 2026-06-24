@@ -94,8 +94,8 @@ function technologyCard(technology, source) {
         ${detailRows}
       </div>
       <div class="card-actions">
-        ${needsTranslation ? `<button class="card-translate-btn" onclick="translateCard(this, '${technology.id}')">Translate to English</button>` : ""}
-        <button class="card-details-btn" onclick="toggleDetails(this, '${technology.id}')">
+        ${needsTranslation ? `<button class="card-translate-btn" onclick="translateCard(this)">Translate to English</button>` : ""}
+        <button class="card-details-btn" onclick="toggleDetails(this)">
           Full record ↓
         </button>
         ${technology.url ? `<a class="button button-secondary card-external-link" href="${technology.url}" target="_blank" rel="noopener noreferrer">${technology.source_id === "ip_australia" ? "Search patent ↗" : "View on source ↗"}</a>` : ""}
@@ -104,8 +104,8 @@ function technologyCard(technology, source) {
   `;
 }
 
-function toggleDetails(btn, techId) {
-  const card = document.querySelector(`[data-tech-id="${techId}"]`);
+function toggleDetails(btn) {
+  const card = btn.closest("[data-tech-id]");
   const panel = card.querySelector(".card-detail-panel");
   const hidden = panel.hasAttribute("hidden");
   if (hidden) {
@@ -125,8 +125,8 @@ async function translateText(text) {
   return data.responseData?.translatedText || text;
 }
 
-async function translateCard(btn, techId) {
-  const card = document.querySelector(`[data-tech-id="${techId}"]`);
+async function translateCard(btn) {
+  const card = btn.closest("[data-tech-id]");
   const titleEl = card.querySelector(".card-title");
   const summaryEl = card.querySelector(".card-summary");
   const tags = card.querySelectorAll(".keyword-tag");
