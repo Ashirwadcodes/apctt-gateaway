@@ -462,6 +462,22 @@ const SOURCE_DETAIL = {
     coverage: "India — technologies from CSIR institutes available for licensing, joint development, and commercialisation by domestic and international partners.",
     searchHint: "Search by technology name, application area, or CSIR institute. Each result links directly to the full technology profile.",
   },
+  dost_tapi: {
+    flag: "🇵🇭",
+    size: "75",
+    sizeLabel: "technologies",
+    description: "The DOST-TAPI Technology Transfer Portal lists technologies developed by Philippine government R&D institutes ready for commercialisation across 5 priority sectors.",
+    coverage: "Philippines — technologies from DOST agencies covering agricultural productivity, healthcare, MSME competitiveness, ICT, and disaster resilience.",
+    searchHint: "Search by technology name or application area. Each result links to the full DOST-TAPI technology profile.",
+  },
+  slintec: {
+    flag: "🇱🇰",
+    size: "28",
+    sizeLabel: "technologies",
+    description: "SLINTEC (Sri Lanka Institute of Nanotechnology) offers ready-to-commercialise nanotechnology-based innovations spanning materials, agriculture, health, water treatment, and consumer products.",
+    coverage: "Sri Lanka — nanotechnology-driven innovations from SLINTEC available for licensing and joint development.",
+    searchHint: "Search by technology name or application area. Each result links to the SLINTEC technology page.",
+  },
 };
 
 function sourceDetailCard(source) {
