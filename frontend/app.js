@@ -470,14 +470,6 @@ const SOURCE_DETAIL = {
     coverage: "Philippines — technologies from DOST agencies covering agricultural productivity, healthcare, MSME competitiveness, ICT, and disaster resilience.",
     searchHint: "Search by technology name or application area. Each result links to the full DOST-TAPI technology profile.",
   },
-  slintec: {
-    flag: "🇱🇰",
-    size: "28",
-    sizeLabel: "technologies",
-    description: "SLINTEC (Sri Lanka Institute of Nanotechnology) offers ready-to-commercialise nanotechnology-based innovations spanning materials, agriculture, health, water treatment, and consumer products.",
-    coverage: "Sri Lanka — nanotechnology-driven innovations from SLINTEC available for licensing and joint development.",
-    searchHint: "Search by technology name or application area. Each result links to the SLINTEC technology page.",
-  },
   tech2biz: {
     flag: "🇹🇭",
     size: "645",
