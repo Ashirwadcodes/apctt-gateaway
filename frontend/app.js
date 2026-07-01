@@ -30,7 +30,7 @@ const state = {
   countries: [],
   sectors: [],
   databaseTypes: [],
-  source: "",
+  sources: [],
   language: "",
   mergedPage: 1,
 };
@@ -44,7 +44,7 @@ const els = {
   countryMs: document.querySelector("#country-multiselect"),
   sectorMs: document.querySelector("#sector-multiselect"),
   dbtypeMs: document.querySelector("#dbtype-multiselect"),
-  source: document.querySelector("#source-filter"),
+  sourceMs: document.querySelector("#source-multiselect"),
   language: document.querySelector("#language-filter"),
   clear: document.querySelector("#clear-filters"),
   filters: document.querySelector(".filters"),
@@ -120,16 +120,6 @@ const sourceInitials = (name) =>
     .slice(0, 2)
     .map((word) => word[0])
     .join("");
-
-function populateSelect(select, values, labelAccessor = (item) => item) {
-  const options = values
-    .map((item) => {
-      const value = typeof item === "object" ? item.id : item;
-      return `<option value="${value}">${labelAccessor(item)}</option>`;
-    })
-    .join("");
-  select.insertAdjacentHTML("beforeend", options);
-}
 
 // ── Render functions (unchanged) ─────────────────────────────────────────────
 
@@ -426,7 +416,7 @@ async function fetchSources() {
 async function fetchResults(overrides = {}) {
   const params = new URLSearchParams();
   const page = overrides.page || 1;
-  const src  = overrides.source !== undefined ? overrides.source : state.source;
+  const src  = overrides.source !== undefined ? overrides.source : state.sources.join(",");
   const excl = overrides.exclude;
   if (state.query)          params.set("q", state.query);
   if (state.countries.length) params.set("country", state.countries.join(","));
@@ -465,10 +455,10 @@ function getActiveMergeIds() {
     .filter((s) => s.status === "Metadata search")
     .map((s) => s.id);
 
-  if (state.source) ids = ids.filter((id) => id === state.source);
+  if (state.sources.length) ids = ids.filter((id) => state.sources.includes(id));
   if (state.countries.length) ids = ids.filter((id) => state.countries.includes(sourceMap[id]?.country));
 
-  const explicitlyWantsNTB = state.source === "korea_ntb" || state.countries.includes("Republic of Korea");
+  const explicitlyWantsNTB = state.sources.includes("korea_ntb") || state.countries.includes("Republic of Korea");
   if (!explicitlyWantsNTB) ids = ids.filter((id) => id !== "korea_ntb");
 
   // IP Australia's quick-search API requires a real query term — including it
@@ -483,7 +473,7 @@ function getRedirectSources() {
   if (state.databaseTypes.length && !state.databaseTypes.includes("Search redirect")) return [];
   return sourcesCache.filter((s) =>
     s.status === "Search redirect" &&
-    (!state.source || state.source === s.id) &&
+    (!state.sources.length || state.sources.includes(s.id)) &&
     (!state.countries.length || state.countries.includes(s.country))
   );
 }
@@ -552,8 +542,10 @@ async function renderResults() {
   updateStatsBar(merged.totalAcrossSources, activeIds.length);
 
   // Fetch Korea NTB's live total in the background purely for the header count,
-  // unless it's already part of the merged pool above.
-  if (!includesNTB) {
+  // unless it's already part of the merged pool above, or the user has
+  // explicitly narrowed to specific sources/countries that exclude it.
+  const shouldCheckNTBSeparately = !includesNTB && !state.sources.length && !state.countries.length;
+  if (shouldCheckNTBSeparately) {
     fetchResults({ source: "korea_ntb", page: 1 })
       .then((data) => {
         const ntbTotal = data.source_totals?.korea_ntb || 0;
@@ -695,7 +687,7 @@ async function renderSourcesTable() {
     // Populate filters
     const countryOptions = [...new Set(sources.map((s) => s.country))].sort()
       .map((c) => ({ value: c, label: c }));
-    populateSelect(els.source, sources, (s) => s.name);
+    const sourceOptions = sources.map((s) => ({ value: s.id, label: s.name }));
 
     initMultiselect(els.countryMs, countryOptions, () => state.countries, (next) => {
       state.countries = next;
@@ -709,6 +701,11 @@ async function renderSourcesTable() {
     });
     initMultiselect(els.dbtypeMs, DBTYPE_OPTIONS, () => state.databaseTypes, (next) => {
       state.databaseTypes = next;
+      state.mergedPage = 1;
+      renderResults();
+    });
+    initMultiselect(els.sourceMs, sourceOptions, () => state.sources, (next) => {
+      state.sources = next;
       state.mergedPage = 1;
       renderResults();
     });
@@ -730,6 +727,14 @@ function runSearch(query) {
   document.querySelector("#search-results").scrollIntoView({ behavior: "smooth" });
 }
 
+function selectOnlySource(sourceId) {
+  state.sources = [sourceId];
+  els.sourceMs._render?.();
+  runSearch(state.query || "");
+}
+
+window.selectOnlySource = selectOnlySource;
+
 els.form.addEventListener("submit", (event) => {
   event.preventDefault();
   runSearch(els.input.value);
@@ -740,15 +745,10 @@ document.querySelector("#popular-chips").addEventListener("click", (event) => {
   if (chip) runSearch(chip.dataset.keyword);
 });
 
-[
-  [els.source, "source"],
-  [els.language, "language"],
-].forEach(([select, key]) => {
-  select.addEventListener("change", () => {
-    state[key] = select.value;
-    state.mergedPage = 1;
-    renderResults();
-  });
+els.language.addEventListener("change", () => {
+  state.language = els.language.value;
+  state.mergedPage = 1;
+  renderResults();
 });
 
 els.clear.addEventListener("click", () => {
@@ -756,12 +756,12 @@ els.clear.addEventListener("click", () => {
   state.countries = [];
   state.sectors = [];
   state.databaseTypes = [];
-  state.source = "";
+  state.sources = [];
   state.language = "";
   state.mergedPage = 1;
   els.input.value = "";
-  [els.source, els.language].forEach((select) => { select.value = ""; });
-  [els.countryMs, els.sectorMs, els.dbtypeMs].forEach((c) => c._render?.());
+  els.language.value = "";
+  [els.countryMs, els.sectorMs, els.dbtypeMs, els.sourceMs].forEach((c) => c._render?.());
   renderResults();
 });
 
@@ -807,7 +807,7 @@ function openSourcePage(sourceId) {
       <p>${detail.searchHint}</p>
     </div>` : ""}
     <div class="sp-actions">
-      <button class="button button-primary" onclick="closeSourcePage(); state.source='${source.id}'; document.querySelector('#source-filter').value='${source.id}'; runSearch(state.query || ''); ">
+      <button class="button button-primary" onclick="closeSourcePage(); selectOnlySource('${source.id}');">
         Search ${source.name}
       </button>
       <a class="button button-secondary" href="${source.url}" target="_blank" rel="noopener noreferrer">

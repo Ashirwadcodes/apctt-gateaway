@@ -48,7 +48,8 @@ async def search(
 
     active_sources = SOURCES
     if source:
-        active_sources = [s for s in SOURCES if s.id == source]
+        source_ids = {x.strip() for x in source.split(",") if x.strip()}
+        active_sources = [s for s in SOURCES if s.id in source_ids]
     if exclude:
         excluded_ids = {x.strip() for x in exclude.split(",")}
         active_sources = [s for s in active_sources if s.id not in excluded_ids]

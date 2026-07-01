@@ -615,6 +615,26 @@
   border-radius: 4px;
   background: var(--white);
   box-shadow: 0 10px 28px rgba(16, 17, 87, 0.14);
+  scrollbar-width: thin;
+  scrollbar-color: #c2d4e5 var(--soft);
+}
+
+.multiselect-panel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.multiselect-panel::-webkit-scrollbar-track {
+  background: var(--soft);
+  border-radius: 3px;
+}
+
+.multiselect-panel::-webkit-scrollbar-thumb {
+  border-radius: 3px;
+  background: #c2d4e5;
+}
+
+.multiselect-panel::-webkit-scrollbar-thumb:hover {
+  background: var(--blue-600);
 }
 
 .multiselect-option {
