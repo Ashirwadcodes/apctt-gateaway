@@ -10,6 +10,7 @@
   --blue-600: #2e87c8;
   --blue-100: #e5eff8;
   --blue-50: #f1f6fa;
+  --un-blue: #009edb; /* UN/ESCAP brand blue — used sparingly as an accent */
   --ink: #212529;
   --muted: #596674;
   --line: #d5e0ea;
@@ -231,7 +232,7 @@
 .eyebrow span {
   width: 22px;
   height: 2px;
-  background: var(--blue-700);
+  background: var(--un-blue);
 }
 
 .apse h1,
@@ -444,6 +445,7 @@
   margin-bottom: 22px;
   padding: 16px 22px;
   border: 1px solid var(--blue-100);
+  border-left: 3px solid var(--un-blue);
   border-radius: 4px;
   background: var(--blue-50);
 }
